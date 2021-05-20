@@ -1,5 +1,5 @@
 const fs = require('fs');
-const http = require('http').createServer;
+const http = require('https').createServer;
 const crypto = require("crypto");
 const WebSocket = require('ws').Server;
 const port = 8080;
@@ -8,11 +8,11 @@ const options = {
     key: fs.readFileSync('key.pem'),
     cert: fs.readFileSync('cert.pem')
 };
- 
+
 // We use a HTTP server for serving static pages. In the real world you'll
 // want to separate the signaling server and how you serve the HTML/JS, the
 // latter typically through a CDN.
-const server = http({ })
+const server = http({ key: options.key, cert: options.cert })
     .listen(port);
 server.on('listening', () => {
     console.log('Server listening on http://localhost:' + port);
@@ -31,23 +31,23 @@ server.on('request', (request, response) => {
             response.end(data);
         });
     } else {
-    fs.readFile('static/index.html', (err, data) => {
-        if (err) {
-            console.log('could not read client file', err);
-            response.writeHead(404);
-            response.end();
-            return;
-        }
-        response.writeHead(200, {'Content-Type': 'text/html'});
-        response.end(data);
-    });
+        fs.readFile('static/index.html', (err, data) => {
+            if (err) {
+                console.log('could not read client file', err);
+                response.writeHead(404);
+                response.end();
+                return;
+            }
+            response.writeHead(200, { 'Content-Type': 'text/html' });
+            response.end(data);
+        });
     }
 });
 
 // A map of websocket connections.
 const connections = new Map();
 // WebSocket server, running alongside the http server.
-const wss = new WebSocket({server});
+const wss = new WebSocket({ server });
 
 // Generate a (unique) client id.
 // Exercise: extend this to generate a human-readable id.
@@ -55,7 +55,7 @@ function generateClientId() {
     var id = "SubC" + connections.size;
     return id;
 }
- 
+
 wss.on('connection', (ws) => {
     // Assign an id to the client. The other alternative is to have the client
     // pick its id and tell us. But that needs handle duplicates. It is preferable
@@ -81,14 +81,14 @@ wss.on('connection', (ws) => {
     // for TURN it might require getting credentials.
     ws.send(JSON.stringify({
         type: 'iceServers',
-        iceServers: [{urls: 'stun:stun.l.google.com:19302'}],
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
     }));
 
     // Remove the connection. Note that this does not tell anyone you are currently in a call with
     // that this happened. This would require additional statekeeping that is not done here.
     ws.on('close', () => {
         console.log(id, 'Connection closed');
-        connections.delete(id); 
+        connections.delete(id);
     });
 
     ws.on('message', (message) => {
@@ -96,7 +96,7 @@ wss.on('connection', (ws) => {
         let data;
         // TODO: your protocol should send some kind of error back to the caller instead of
         // returning silently below.
-        try  {
+        try {
             data = JSON.parse(message);
         } catch (err) {
             console.log(id, 'invalid json', err, message);
