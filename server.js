@@ -1,5 +1,5 @@
 const fs = require('fs');
-const http = require('https').createServer;
+const http = require('http').createServer;
 const crypto = require("crypto");
 const WebSocket = require('ws').Server;
 const port = 8080;
@@ -12,12 +12,25 @@ const options = {
 // We use a HTTP server for serving static pages. In the real world you'll
 // want to separate the signaling server and how you serve the HTML/JS, the
 // latter typically through a CDN.
-const server = http({ key: options.key, cert: options.cert })
+const server = http({ })
     .listen(port);
 server.on('listening', () => {
     console.log('Server listening on http://localhost:' + port);
 });
 server.on('request', (request, response) => {
+    //console.log(request);
+    if (request.url.indexOf("receiver") != -1) {
+        fs.readFile('static/receiver.html', (err, data) => {
+            if (err) {
+                console.log('could not read client file', err);
+                response.writeHead(404);
+                response.end();
+                return;
+            }
+            response.writeHead(200, { 'Content-Type': 'text/html' });
+            response.end(data);
+        });
+    } else {
     fs.readFile('static/index.html', (err, data) => {
         if (err) {
             console.log('could not read client file', err);
@@ -28,6 +41,7 @@ server.on('request', (request, response) => {
         response.writeHead(200, {'Content-Type': 'text/html'});
         response.end(data);
     });
+    }
 });
 
 // A map of websocket connections.
@@ -38,7 +52,7 @@ const wss = new WebSocket({server});
 // Generate a (unique) client id.
 // Exercise: extend this to generate a human-readable id.
 function generateClientId() {
-    var id = "SubCUser" + crypto.randomBytes(20).toString('hex');
+    var id = "SubC" + connections.size;
     return id;
 }
  
